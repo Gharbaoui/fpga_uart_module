@@ -60,3 +60,23 @@ help
 
 ###### After
 ![](./pics/st_2.png)
+
+I usually miss that wait stuff by one cycle so i want to handle first should I have counter that
+is counting from 0 to 233 or 234 and will I start from 1 if so to what should I stop to achieve 
+what i need which is to 234 periods to pass let's test it
+
+look at the file tests/counter_value_in_while_waiting_in_start.v
+
+```v
+    counter <= counter + 1;
+    if (counter == WAIT_NUMBER) begin // WAIT_NUMBER not WAIT_NUMBER-1
+        counter <= 0;
+        state <= 2; // for debugging done waiting
+    end
+```
+
+to understand i have decided that I'll start with 1 because it does make sense because we we 
+detect the rx_line to be low it's already one clock cycle in, i did 8 for debugging and as will 
+see below it's going to wait 8 periods before moving to the next state
+
+![](./pics/db_1.png)
