@@ -3,8 +3,11 @@ i want to experiment with FPGAs so i have decided to play with tangnano series
 
 #### Disclaimer
 I'm not going into depth with all the stuff so if you didn't understand it's probably
-not explained that much cuz i have assumed that you are not absolutely beginner
-and for now **I intend only to read**
+not explained that much cuz i have assumed that you are not absolutely beginner, BTW
+sometimes I'll put samples and if you see problem in them it's probably true, because
+sometimes i intend to put error then fix it down there, so just keep going you'll probably
+reach when it was fixed, and I do that because I don't want to jump, i want to build to it
+
 
 #### UART theory
 uart is protocol that allows for data transmission there's multiple configuration i intend to implement
@@ -282,3 +285,164 @@ to do with what happens in START state
 ```
 
 ![](./pics/db_3.png)
+
+now we need to read/sample data so something that may look like this
+
+```v
+RX_STATE_READ: begin
+    data <= {uart_rx, data[7:1]};
+end
+```
+
+you may have question of why
+
+```v
+data <= {uart_rx, data[7:1]};
+```
+
+and not
+
+```v
+data <= {data[6:0], uart_rx};
+```
+
+well that is because UART transmit data LSB first, and another question what because this code
+will not wait WAIT_CYCLES and next clock will sample again, and if that is the case it'will 
+sample the same bit, which is not what we want we need to wait and luckily for us we already
+have RX_STATE_WAIT we could just jump to it
+
+```v
+RX_STATE_READ: begin
+    data <= {uart_rx, data[7:1]};
+    counter <= 0;
+    state <= RX_STATE_WAIT;
+end
+```
+
+okay that's seems fine but there's another problem, when are we going to stop because if we
+just keep it like this it will like (infinite loop) WAIT to READ to WAIT to READ ....
+we need somehow to track of how many bits that we have read so if that number is 8 we move
+to STOP state so we need a register that will count up to 7 (0-7) is 8 bits
+
+```v
+reg [2:0] how_many_bits_are_ready;
+```
+
+```v
+RX_STATE_READ: begin
+    how_many_bits_are_ready <= how_many_bits_are_ready + 1;
+    data <= {uart_rx, data[7:1]};
+    counter <= 0;
+    state <= RX_STATE_WAIT;
+end
+```
+
+now we have kept track of how many bits we have read we could just add if statement there to move
+to stop state something like this
+
+
+```v
+localparam DATA_WIDTH = 8;
+
+RX_STATE_READ: begin
+    how_many_bits_are_ready <= how_many_bits_are_ready + 1;
+    data <= {uart_rx, data[7:1]};
+    counter <= 0;
+    if (how_many_bits_are_ready == DATA_WIDTH-1) begin
+        state <= RX_STATE_STOP;
+    end else begin
+        state <= RX_STATE_WAIT;
+    end
+end
+```
+
+let's do some debugging and check/fix maybe
+
+
+```v
+`timescale 1ns / 1ps
+
+`include "uart.v"
+
+module uart_tb;
+
+reg clk;
+reg btn;
+reg uart_rx;
+
+wire uart_tx;
+wire [5:0] led;
+
+uart #(.WAIT_CYCLES(8)) uut0(
+    .clk(clk), .btn(btn),
+    .uart_rx(uart_rx),
+    .uart_tx(uart_tx),
+    .led(led)
+);
+
+always #1 clk = ~clk;
+
+initial begin
+    clk = 1;
+    $dumpfile("uart_tb.vcd");
+    $dumpvars;
+
+    uart_rx = 1; // idle
+    #6; // so internally we move from default case to idle state just setting up the state register
+    uart_rx = 0; // move to start state
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1; // go to stop
+
+    #100 $finish;
+
+end
+
+
+endmodule
+```
+
+![](./pics/db_4.png)
+![](./pics/db_4_zoom.png)
+
+as you can see that there's problem we sample one period late, we could sample in RX_STATE_WAIT
+but that would give a problem for the first bit and we are going to sample early because
+RX_STATE_WAIT can come from READ state or start state, we could add another WAIT state special 
+for START or something specifically for READ state, but if you noticed that even if we are
+one period late we still read the correct data but that shift will add up over time and maybe
+will gives wrong data, but the key point here **First Bit Even Late CORRECT** what I'm thinking
+of let that be, and I'll accommodate for it in later bits by starting counter at 1 okay are not
+we short by 1 again well it may seem so, we spend WAIT_CYCLES-1 periods in WAIT because we start 
+the counter at 1 but we spend 1 cycle in read so that's why in total we spend accommodate for it
+let's see BTW
+
+**NEW**
+```v
+RX_STATE_READ: begin
+    how_many_bits_are_ready <= how_many_bits_are_ready + 1;
+    data <= {uart_rx, data[7:1]};
+    counter <= 1; // CHANGE
+    if (how_many_bits_are_ready == DATA_WIDTH-1) begin
+        state <= RX_STATE_STOP;
+    end else begin
+        state <= RX_STATE_WAIT;
+    end
+end
+```
+
+![](./pics/db_5.png)

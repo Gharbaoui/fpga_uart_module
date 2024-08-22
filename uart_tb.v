@@ -26,10 +26,28 @@ initial begin
     $dumpvars;
 
     uart_rx = 1; // idle
-    #5; // so internally we move from default case to idle state just setting up the state register
+    #6; // so internally we move from default case to idle state just setting up the state register
     uart_rx = 0; // move to start state
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1; // go to stop
 
-    #200 $finish;
+    #100 $finish;
 
 end
 
