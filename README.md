@@ -446,3 +446,48 @@ end
 ```
 
 ![](./pics/db_5.png)
+
+when this condition is true
+```v
+if (how_many_bits_are_ready == DATA_WIDTH-1) begin
+```
+
+we should move to stop state and wait WAIT_CYCLES and play with the data
+
+![](./pics/db_6.png)
+
+now data is ready i could do something with it in STOP state, but I decided to do separate always
+block for clarity, but the always block will be based on what let's add another register/flag **byte_is_ready**
+
+```v
+always @ (posedge clk) begin
+    if (byte_is_ready) begin
+        led <= ~data[5:0];
+    end
+end
+```
+
+let's test it
+
+![](./pics/db_7.png)
+
+it seems that is everything is working
+
+i was intending to explain the toolchain setup also but It got complicated to add here maybe I'll do
+it separately
+
+#### Result
+
+here's how to connect to it
+
+```sh
+sudo cu -l /dev/cu.usbserial-212301 -s 115200
+```
+
+![](./pics/done_1.png)
+
+i wrote `I` which is `0b1001001`
+
+and here's the FPGA
+
+![](./pics/final.jpg)

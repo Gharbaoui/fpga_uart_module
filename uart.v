@@ -20,6 +20,7 @@ reg [2:0] state;
 reg [7:0] counter;
 reg [7:0] data;
 reg [2:0] how_many_bits_are_ready;
+reg byte_is_ready;
 
 
 always @ (posedge clk) begin
@@ -27,6 +28,7 @@ always @ (posedge clk) begin
         RX_STATE_IDLE: begin
             if (uart_rx == 1'b0) begin
                 counter <= 1;
+                byte_is_ready <= 0;
                 how_many_bits_are_ready <= 0;
                 state <= RX_STATE_START;
             end
@@ -50,15 +52,27 @@ always @ (posedge clk) begin
             counter <= 1;
             if (how_many_bits_are_ready == DATA_WIDTH-1) begin
                 state <= RX_STATE_STOP;
+                counter <= 1;
             end else begin
                 state <= RX_STATE_WAIT;
             end
         end
         RX_STATE_STOP: begin
+            counter <= counter + 1;
+            if (counter == WAIT_CYCLES) begin
+                state <= RX_STATE_IDLE;
+                byte_is_ready <= 1;
+            end
         end
         default:
             state <= RX_STATE_IDLE;
     endcase
+end
+
+always @ (posedge clk) begin
+    if (byte_is_ready) begin
+        led <= ~data[5:0];
+    end
 end
 
 endmodule

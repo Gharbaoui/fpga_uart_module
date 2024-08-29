@@ -46,6 +46,29 @@ initial begin
     uart_rx = 0;
     #16;
     uart_rx = 1; // go to stop
+    
+    // for the second bit
+    
+    #16 // stay in idle at least 16 ns in stop state
+    uart_rx = 0; // move to start state
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 0;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 1;
+    #16;
+    uart_rx = 1; // go to stop
 
     #100 $finish;
 
